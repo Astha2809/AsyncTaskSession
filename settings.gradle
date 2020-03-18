@@ -1,0 +1,2 @@
+rootProject.name='AsyncTaskSession'
+include ':app'
