@@ -5,12 +5,16 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.ProgressDialog;
 import android.app.Service;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.ResultReceiver;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -27,22 +31,25 @@ import static android.os.Environment.getExternalStorageDirectory;
 
 
 public class MainActivity extends AppCompatActivity {
-    String URL = "";
+    String url1 = "https://images.app.goo.gl/Lz85uCMTmLhZXrbx7";
+    String url2 = "https://images.app.goo.gl/G9NqW4kjvynvARi17";
     ImageView image;
     Button downloadbutton;
+    Button downloadusingservice;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        image = findViewById(R.id.downloaded_image);
-        downloadbutton = findViewById(R.id.download);
+        initUi();
+
         downloadbutton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View arg0) {
                 if (isConnected()) {
-                    new DownloadImage().execute(URL);
+                    final DownloadImage downloadImage = new DownloadImage();
+                    downloadImage.execute(url1);
                 } else {
                     Toast.makeText(MainActivity.this, "Internet not connected", Toast.LENGTH_SHORT).show();
                 }
@@ -50,6 +57,41 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        downloadusingservice.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, DownloadService.class);
+                intent.putExtra("url", url2);
+                intent.putExtra("receiver", new DownloadReceiver(new Handler()));
+                startService(intent);
+            }
+        });
+
+    }
+
+    private void initUi() {
+        image = findViewById(R.id.downloaded_image);
+        downloadbutton = findViewById(R.id.download);
+        downloadusingservice = findViewById(R.id.downloadservice);
+    }
+
+    private class DownloadReceiver extends ResultReceiver {
+        public DownloadReceiver(Handler handler) {
+            super(handler);
+        }
+
+        @Override
+        protected void onReceiveResult(int resultCode, Bundle resultData) {
+            super.onReceiveResult(resultCode, resultData);
+            if (resultCode == DownloadService.UPDATE_PROGRESS) {
+                int progress = resultData.getInt("progress");
+
+                if (progress == 100) {
+                    image.setImageBitmap(BitmapFactory.decodeFile(getExternalStorageDirectory().getAbsolutePath() + "/" + "myImage1.jpg"));
+
+                }
+            }
+        }
     }
 
     public boolean isConnected() {
@@ -68,22 +110,17 @@ public class MainActivity extends AppCompatActivity {
 
     private class DownloadImage extends AsyncTask<String, Integer, String> {
         ProgressDialog ProgressDialog;
-       // private Context context;
-        //Bitmap bitmap;
+
         private String path;
 
 
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            // Create a progressdialog
+
             ProgressDialog = new ProgressDialog(MainActivity.this);
-            // Set progressdialog title
-            ProgressDialog.setTitle("Download Image Tutorial");
-            // Set progressdialog message
             ProgressDialog.setMessage("Loading...");
             ProgressDialog.setIndeterminate(false);
-            // Show progressdialog
             ProgressDialog.show();
 
         }
@@ -98,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected String doInBackground(String... surl) {
-//
+
             InputStream input = null;
             OutputStream output = null;
             HttpURLConnection connection = null;
@@ -110,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
 
                 int fileLength = connection.getContentLength();
 
-                // download the file
+
                 input = connection.getInputStream();
                 path = getExternalStorageDirectory().getAbsolutePath() + "/" + "myImage.jpg";
                 output = new FileOutputStream(path);
@@ -122,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
                     while (!isConnected()) {
 
                     }
-                    // allow canceling with back button
+
                     if (isCancelled()) {
                         input.close();
                         return null;
@@ -154,11 +191,11 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPostExecute(String s) {
-            //image.setImageBitmap(result);
-            // Close progressdialog
+
+
             if (isConnected()) {
                 path = getExternalStorageDirectory().getAbsolutePath() + "/" + "myImage.jpg";
-//                mProgressDialog.dismiss();
+//
                 Bitmap bitmap = BitmapFactory.decodeFile(path);
                 image.setImageBitmap(bitmap);
             }
